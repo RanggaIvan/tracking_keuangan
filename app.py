@@ -13,10 +13,10 @@ app.secret_key = 'keuangan_secret_key_2026'
 #  DATABASE CONNECTION
 # ─────────────────────────────────────────
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'db': 'keuangan',
+    'host': 'sql310.infinityfree.com',
+    'user': 'if0_41918605',
+    'password': 'RanggaIvanFadly',
+    'db': 'if0_41918605_keuangan',
     'charset': 'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor
 }
@@ -140,6 +140,7 @@ def dashboard():
             """, (uid,))
             recent = cur.fetchall()
 
+            # Monthly data for chart (last 6 months)
             cur.execute("""
                 SELECT MONTH(transaction_date) AS m, YEAR(transaction_date) AS y,
                        type, SUM(amount) AS total
@@ -172,14 +173,14 @@ def transactions():
     offset = (page - 1) * per_page
 
     filter_type = request.args.get('type', '')
-    filter_cat  = request.args.get('category', '')
+    filter_cat = request.args.get('category', '')
     filter_start = request.args.get('start', '')
-    filter_end   = request.args.get('end', '')
+    filter_end = request.args.get('end', '')
 
     db = get_db()
     try:
         with db.cursor() as cur:
-            # ── Build WHERE clause ──
+            # Build WHERE
             where = "WHERE t.user_id=%s"
             params = [uid]
             if filter_type:
@@ -204,8 +205,7 @@ def transactions():
             """, params + [per_page, offset])
             rows = cur.fetchall()
 
-            # ── FIX: query categories tanpa user_id ──
-            cur.execute("SELECT * FROM categories ORDER BY type, name")
+            cur.execute("SELECT * FROM categories WHERE user_id=%s OR user_id IS NULL ORDER BY name", (uid,))
             categories = cur.fetchall()
 
     finally:
@@ -299,7 +299,6 @@ def categories():
     db = get_db()
     try:
         with db.cursor() as cur:
-            # ── FIX: tidak pakai user_id, hitung transaksi milik user ini ──
             cur.execute("""
                 SELECT c.*, COUNT(t.id) AS tx_count
                 FROM categories c
@@ -315,11 +314,12 @@ def categories():
 @app.route('/categories/add', methods=['POST'])
 @login_required
 def add_category():
+    uid = session['user_id']
     db = get_db()
     try:
         with db.cursor() as cur:
-            cur.execute("INSERT INTO categories (name, type) VALUES (%s,%s)",
-                        (request.form['name'], request.form['type']))
+            cur.execute("INSERT INTO categories (name, type, user_id) VALUES (%s,%s,%s)",
+                        (request.form['name'], request.form['type'], uid))
             db.commit()
     finally:
         db.close()
@@ -328,11 +328,12 @@ def add_category():
 @app.route('/categories/edit/<int:cid>', methods=['POST'])
 @login_required
 def edit_category(cid):
+    uid = session['user_id']
     db = get_db()
     try:
         with db.cursor() as cur:
-            cur.execute("UPDATE categories SET name=%s, type=%s WHERE id=%s",
-                        (request.form['name'], request.form['type'], cid))
+            cur.execute("UPDATE categories SET name=%s, type=%s WHERE id=%s AND user_id=%s",
+                        (request.form['name'], request.form['type'], cid, uid))
             db.commit()
     finally:
         db.close()
@@ -341,10 +342,11 @@ def edit_category(cid):
 @app.route('/categories/delete/<int:cid>', methods=['POST'])
 @login_required
 def delete_category(cid):
+    uid = session['user_id']
     db = get_db()
     try:
         with db.cursor() as cur:
-            cur.execute("DELETE FROM categories WHERE id=%s", (cid,))
+            cur.execute("DELETE FROM categories WHERE id=%s AND user_id=%s", (cid, uid))
             db.commit()
     finally:
         db.close()
@@ -353,10 +355,11 @@ def delete_category(cid):
 @app.route('/categories/get/<int:cid>')
 @login_required
 def get_category(cid):
+    uid = session['user_id']
     db = get_db()
     try:
         with db.cursor() as cur:
-            cur.execute("SELECT * FROM categories WHERE id=%s", (cid,))
+            cur.execute("SELECT * FROM categories WHERE id=%s AND user_id=%s", (cid, uid))
             row = cur.fetchone()
     finally:
         db.close()
@@ -371,7 +374,7 @@ def reports():
     uid = session['user_id']
     now = datetime.now()
     month = int(request.args.get('month', now.month))
-    year  = int(request.args.get('year',  now.year))
+    year = int(request.args.get('year', now.year))
     report_type = request.args.get('report_type', 'monthly')
 
     db = get_db()
@@ -382,9 +385,7 @@ def reports():
                     SELECT t.*, c.name AS category_name
                     FROM transactions t
                     LEFT JOIN categories c ON t.category_id=c.id
-                    WHERE t.user_id=%s
-                      AND MONTH(t.transaction_date)=%s
-                      AND YEAR(t.transaction_date)=%s
+                    WHERE t.user_id=%s AND MONTH(t.transaction_date)=%s AND YEAR(t.transaction_date)=%s
                     ORDER BY t.transaction_date DESC
                 """, (uid, month, year))
             else:
@@ -397,14 +398,13 @@ def reports():
                 """, (uid, year))
             rows = cur.fetchall()
 
+            # Summary by category
             if report_type == 'monthly':
                 cur.execute("""
                     SELECT c.name, c.type, SUM(t.amount) AS total
                     FROM transactions t
                     LEFT JOIN categories c ON t.category_id=c.id
-                    WHERE t.user_id=%s
-                      AND MONTH(t.transaction_date)=%s
-                      AND YEAR(t.transaction_date)=%s
+                    WHERE t.user_id=%s AND MONTH(t.transaction_date)=%s AND YEAR(t.transaction_date)=%s
                     GROUP BY c.id ORDER BY total DESC
                 """, (uid, month, year))
             else:
@@ -417,6 +417,7 @@ def reports():
                 """, (uid, year))
             by_cat = cur.fetchall()
 
+            # Monthly breakdown for yearly report
             monthly_breakdown = []
             if report_type == 'yearly':
                 cur.execute("""
@@ -430,7 +431,7 @@ def reports():
     finally:
         db.close()
 
-    total_income  = sum(float(r['amount']) for r in rows if r['type'] == 'income')
+    total_income = sum(float(r['amount']) for r in rows if r['type'] == 'income')
     total_expense = sum(float(r['amount']) for r in rows if r['type'] == 'expense')
     balance = total_income - total_expense
 
@@ -471,7 +472,7 @@ def profile():
 @login_required
 def update_profile():
     uid = session['user_id']
-    name  = request.form.get('name', '').strip()
+    name = request.form.get('name', '').strip()
     email = request.form.get('email', '').strip()
     if not name or not email:
         flash('Nama dan email tidak boleh kosong.', 'error')
@@ -485,7 +486,7 @@ def update_profile():
                 return redirect(url_for('profile'))
             cur.execute("UPDATE users SET name=%s, email=%s WHERE id=%s", (name, email, uid))
             db.commit()
-        session['user_name']  = name
+        session['user_name'] = name
         session['user_email'] = email
         flash('Profil berhasil diperbarui.', 'success')
     finally:
@@ -495,7 +496,7 @@ def update_profile():
 @app.route('/profile/change_password', methods=['POST'])
 @login_required
 def change_password():
-    uid    = session['user_id']
+    uid = session['user_id']
     old_pw = request.form.get('old_password', '')
     new_pw = request.form.get('new_password', '')
     confirm = request.form.get('confirm_password', '')
@@ -522,7 +523,7 @@ def change_password():
     return redirect(url_for('profile'))
 
 # ─────────────────────────────────────────
-#  TEMPLATE FILTERS
+#  TEMPLATE FILTER
 # ─────────────────────────────────────────
 @app.template_filter('rupiah')
 def rupiah_filter(value):
@@ -534,7 +535,7 @@ def rupiah_filter(value):
 @app.template_filter('format_date')
 def format_date_filter(value):
     if not value:
-        return '-'
+        return '-'  
     try:
         if isinstance(value, str):
             value = datetime.strptime(value, '%Y-%m-%d')
