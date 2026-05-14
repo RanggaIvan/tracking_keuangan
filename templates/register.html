@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar — FinanKu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+
+  <div class="auth-split">
+    <!-- Left Panel -->
+    <div class="auth-panel auth-panel-left">
+      <div class="auth-brand">
+        <div class="auth-logo">₿</div>
+        <h1 class="auth-brand-name">FinanKu</h1>
+        <p class="auth-tagline">Mulai perjalanan finansial Anda bersama kami</p>
+      </div>
+      <div class="auth-features">
+        <div class="feature-item">
+          <div class="feature-icon">📊</div>
+          <div>
+            <strong>Laporan Lengkap</strong>
+            <p>Rekap bulanan & tahunan otomatis</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🗂️</div>
+          <div>
+            <strong>Kategori Fleksibel</strong>
+            <p>Atur kategori sesuai kebutuhan Anda</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🔒</div>
+          <div>
+            <strong>Aman & Terjamin</strong>
+            <p>Data Anda terlindungi dengan enkripsi</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel (Form) -->
+    <div class="auth-panel auth-panel-right">
+      <div class="auth-form-wrap">
+        <div class="auth-form-header">
+          <h2>Buat Akun Baru</h2>
+          <p>Isi data di bawah untuk mendaftar</p>
+        </div>
+
+        {% if error %}
+          <div class="auth-alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ error }}
+          </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('register') }}" class="auth-form">
+          <div class="form-group">
+            <label for="name">Nama Lengkap</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <input type="text" id="name" name="name" placeholder="Nama Anda" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Alamat Email</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="email" name="email" placeholder="nama@email.com" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="password" name="password" placeholder="Min. 6 karakter" required minlength="6">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="confirm_password">Konfirmasi Password</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              <input type="password" id="confirm_password" name="confirm_password" placeholder="Ulangi password" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-auth">Buat Akun</button>
+        </form>
+
+        <p class="auth-switch">Sudah punya akun? <a href="{{ url_for('login') }}">Masuk di sini</a></p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

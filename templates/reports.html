@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Laporan{% endblock %}
+{% block page_title %}Laporan Keuangan{% endblock %}
+
+{% block content %}
+
+<!-- Report Controls -->
+<div class="card filter-card">
+  <form method="GET" action="{{ url_for('reports') }}" class="filter-form">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Jenis Laporan</label>
+        <select name="report_type" id="reportTypeSelect" onchange="toggleMonthField(this.value)">
+          <option value="monthly" {% if report_type=='monthly' %}selected{% endif %}>Bulanan</option>
+          <option value="yearly" {% if report_type=='yearly' %}selected{% endif %}>Tahunan</option>
+        </select>
+      </div>
+      <div class="filter-group" id="monthField" {% if report_type=='yearly' %}style="display:none"{% endif %}>
+        <label>Bulan</label>
+        <select name="month">
+          {% for m, mn in months_list %}
+            <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ mn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Tahun</label>
+        <select name="year">
+          {% for y in years %}
+            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Tampilkan Laporan</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="summary-grid">
+  <div class="summary-card card-income">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Total Pemasukan</span>
+      <span class="summary-value">{{ total_income|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+  <div class="summary-card card-expense">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Total Pengeluaran</span>
+      <span class="summary-value">{{ total_expense|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+  <div class="summary-card {% if balance >= 0 %}card-balance balance-positive{% else %}card-balance balance-negative{% endif %}">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="1" x2="12" y2="23"/>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Saldo</span>
+      <span class="summary-value">{{ balance|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="report-charts">
+  <!-- Pie Chart by category -->
+  <div class="card chart-card-sm">
+    <div class="card-header"><h3>Rekap per Kategori</h3></div>
+    <div class="chart-area-sm">
+      <canvas id="pieChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Monthly breakdown for yearly OR bar for monthly -->
+  <div class="card chart-card-sm">
+    <div class="card-header">
+      <h3>{% if report_type == 'yearly' %}Rekap Bulanan {{ year }}{% else %}Distribusi Tipe{% endif %}</h3>
+    </div>
+    <div class="chart-area-sm">
+      <canvas id="secondChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Category Breakdown Table -->
+<div class="report-grid-2">
+  <div class="card">
+    <div class="card-header"><h3>Rincian per Kategori</h3></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Kategori</th><th>Tipe</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          {% for c in by_cat %}
+            <tr>
+              <td>{{ c.name or 'Tanpa Kategori' }}</td>
+              <td><span class="type-badge type-{{ c.type }}">{{ 'Pemasukan' if c.type == 'income' else 'Pengeluaran' }}</span></td>
+              <td class="amount-{{ c.type }}">{{ c.total|rupiah }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="empty-row">Tidak ada data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Transaction List -->
+  <div class="card">
+    <div class="card-header">
+      <h3>Daftar Transaksi</h3>
+      <span class="badge-count">{{ rows|length }}</span>
+    </div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto">
+      <table class="data-table">
+        <thead>
+          <tr><th>Tanggal</th><th>Deskripsi</th><th>Kategori</th><th>Jumlah</th></tr>
+        </thead>
+        <tbody>
+          {% for tx in rows %}
+            <tr>
+              <td class="td-date">{{ tx.transaction_date|format_date }}</td>
+              <td>{{ tx.description or '—' }}</td>
+              <td><span class="cat-badge">{{ tx.category_name or '—' }}</span></td>
+              <td class="amount-{{ tx.type }}">{{ '+' if tx.type=='income' else '−' }}{{ tx.amount|rupiah }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="empty-row">Tidak ada transaksi</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+function toggleMonthField(val) {
+  document.getElementById('monthField').style.display = val === 'yearly' ? 'none' : '';
+}
+
+// PIE CHART
+const byCat = {{ by_cat | tojson }};
+const pieIncome = byCat.filter(c => c.type === 'income');
+const pieExpense = byCat.filter(c => c.type === 'expense');
+const pieLabels = byCat.map(c => (c.name || 'Lainnya') + ' (' + (c.type === 'income' ? '+' : '-') + ')');
+const pieData = byCat.map(c => parseFloat(c.total));
+const pieColors = byCat.map((c, i) => c.type === 'income'
+  ? ['#346739','#79AE6F','#9FCB98','#5A8F52','#4A7042'][i % 5]
+  : ['#C4933F','#E5B96D','#F2D4A0','#D4A050','#A87030'][i % 5]);
+
+const pieCtx = document.getElementById('pieChart').getContext('2d');
+new Chart(pieCtx, {
+  type: 'doughnut',
+  data: {
+    labels: pieLabels,
+    datasets: [{ data: pieData, backgroundColor: pieColors, borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#346739', font: { family: 'DM Sans', size: 11 }, padding: 10 } },
+      tooltip: { callbacks: { label: ctx => ' Rp ' + ctx.raw.toLocaleString('id-ID') } }
+    }
+  }
+});
+
+// SECOND CHART
+const reportType = '{{ report_type }}';
+const secCtx = document.getElementById('secondChart').getContext('2d');
+if (reportType === 'yearly') {
+  const monthly = {{ monthly_breakdown | tojson }};
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const incData = Array(12).fill(0);
+  const expData = Array(12).fill(0);
+  monthly.forEach(r => {
+    if (r.type === 'income') incData[r.m - 1] = parseFloat(r.total);
+    else expData[r.m - 1] = parseFloat(r.total);
+  });
+  new Chart(secCtx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Pemasukan', data: incData, backgroundColor: '#79AE6F', borderRadius: 5 },
+        { label: 'Pengeluaran', data: expData, backgroundColor: '#C4933F', borderRadius: 5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#346739', font: { family: 'DM Sans', size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#346739' }, grid: { display: false } },
+        y: { ticks: { color: '#346739', callback: v => 'Rp' + (v/1000) + 'K' }, grid: { color: '#9FCB9840' } }
+      }
+    }
+  });
+} else {
+  const inc = {{ total_income }};
+  const exp = {{ total_expense }};
+  new Chart(secCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Pemasukan', 'Pengeluaran'],
+      datasets: [{ data: [inc, exp], backgroundColor: ['#79AE6F','#C4933F'], borderRadius: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#346739', callback: v => 'Rp' + (v/1000000) + 'Jt' }, grid: { color: '#9FCB9840' } },
+        y: { ticks: { color: '#346739' }, grid: { display: false } }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

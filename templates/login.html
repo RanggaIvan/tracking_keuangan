@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Masuk — FinanKu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+
+  <div class="auth-split">
+    <!-- Left Panel -->
+    <div class="auth-panel auth-panel-left">
+      <div class="auth-brand">
+        <div class="auth-logo">₿</div>
+        <h1 class="auth-brand-name">FinanKu</h1>
+        <p class="auth-tagline">Kelola keuangan Anda dengan cerdas &amp; teratur</p>
+      </div>
+      <div class="auth-illustration">
+        <div class="float-card fc1">
+          <span class="fc-label">Total Pemasukan</span>
+          <span class="fc-value">Rp 8.450.000</span>
+        </div>
+        <div class="float-card fc2">
+          <span class="fc-label">Saldo Akhir</span>
+          <span class="fc-value">Rp 5.200.000</span>
+        </div>
+        <div class="float-card fc3">
+          <span class="fc-label">Pengeluaran</span>
+          <span class="fc-value">Rp 3.250.000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel (Form) -->
+    <div class="auth-panel auth-panel-right">
+      <div class="auth-form-wrap">
+        <div class="auth-form-header">
+          <h2>Selamat Datang Kembali</h2>
+          <p>Masuk ke akun FinanKu Anda</p>
+        </div>
+
+        {% if error %}
+          <div class="auth-alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ error }}
+          </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+          <div class="form-group">
+            <label for="email">Alamat Email</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <input type="email" id="email" name="email" placeholder="nama@email.com" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-icon-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-auth">Masuk Sekarang</button>
+        </form>
+
+        <p class="auth-switch">Belum punya akun? <a href="{{ url_for('register') }}">Daftar di sini</a></p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

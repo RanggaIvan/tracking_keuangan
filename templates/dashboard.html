@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Summary Cards -->
+<div class="summary-grid">
+  <div class="summary-card card-income">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+        <polyline points="17 6 23 6 23 12"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Total Pemasukan</span>
+      <span class="summary-value">{{ total_income|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+
+  <div class="summary-card card-expense">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+        <polyline points="17 18 23 18 23 12"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Total Pengeluaran</span>
+      <span class="summary-value">{{ total_expense|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+
+  <div class="summary-card card-balance {% if balance >= 0 %}balance-positive{% else %}balance-negative{% endif %}">
+    <div class="summary-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="1" x2="12" y2="23"/>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    <div class="summary-info">
+      <span class="summary-label">Saldo Akhir</span>
+      <span class="summary-value">{{ balance|rupiah }}</span>
+    </div>
+    <div class="summary-decor"></div>
+  </div>
+</div>
+
+<!-- Chart + Recent Transactions -->
+<div class="dashboard-grid">
+  <!-- Chart -->
+  <div class="card chart-card">
+    <div class="card-header">
+      <h3>Grafik 6 Bulan Terakhir</h3>
+    </div>
+    <div class="chart-area">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="card recent-card">
+    <div class="card-header">
+      <h3>Transaksi Terbaru</h3>
+      <a href="{{ url_for('transactions') }}" class="btn-link">Lihat Semua →</a>
+    </div>
+    <div class="recent-list">
+      {% for tx in recent %}
+        <div class="recent-item">
+          <div class="recent-icon {% if tx.type == 'income' %}icon-income{% else %}icon-expense{% endif %}">
+            {% if tx.type == 'income' %}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+              </svg>
+            {% else %}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+              </svg>
+            {% endif %}
+          </div>
+          <div class="recent-details">
+            <span class="recent-desc">{{ tx.description or tx.category_name or 'Transaksi' }}</span>
+            <span class="recent-date">{{ tx.transaction_date|format_date }}</span>
+          </div>
+          <span class="recent-amount {% if tx.type == 'income' %}amount-income{% else %}amount-expense{% endif %}">
+            {% if tx.type == 'income' %}+{% else %}−{% endif %}{{ tx.amount|rupiah }}
+          </span>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <p>Belum ada transaksi</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Button -->
+<a href="{{ url_for('transactions') }}" class="fab-btn" title="Tambah Transaksi">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</a>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const raw = {{ chart_raw | tojson }};
+const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+// Build 6-month labels
+const today = new Date();
+const labels = [];
+const incomeData = [];
+const expenseData = [];
+for (let i = 5; i >= 0; i--) {
+  const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+  labels.push(months[d.getMonth()] + ' ' + d.getFullYear());
+  const m = d.getMonth() + 1, y = d.getFullYear();
+  const inc = raw.find(r => r.m == m && r.y == y && r.type === 'income');
+  const exp = raw.find(r => r.m == m && r.y == y && r.type === 'expense');
+  incomeData.push(inc ? parseFloat(inc.total) : 0);
+  expenseData.push(exp ? parseFloat(exp.total) : 0);
+}
+
+const ctx = document.getElementById('barChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Pemasukan', data: incomeData, backgroundColor: '#79AE6F', borderRadius: 6, borderSkipped: false },
+      { label: 'Pengeluaran', data: expenseData, backgroundColor: '#F2EDC2', borderRadius: 6, borderSkipped: false }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#346739', font: { family: 'DM Sans', size: 12 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ' Rp ' + ctx.raw.toLocaleString('id-ID')
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#346739' }, grid: { display: false } },
+      y: { ticks: { color: '#346739', callback: v => 'Rp ' + (v/1000) + 'K' }, grid: { color: '#9FCB9840' } }
+    }
+  }
+});
+</script>
+{% endblock %}
